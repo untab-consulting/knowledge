@@ -24,38 +24,49 @@ Core principles:
 
 ---
 
-## Planned modules
+## Current status
 
-| Module | Version | Status |
-|---|---|---|
-| Platform / Docker / Unraid | V1 | Planned |
-| Authentication | V1 | Planned |
-| Wikipedia | V1 | Planned |
-| Books | V1 | Planned |
-| Articles & documents | V1 | Planned |
-| Global search | V1 | Planned |
-| Tags & collections | V1 | Planned |
-| Films & series | V2 | Planned |
-| Video games | V2 | Planned |
-| Gamification | V2 | Planned |
-| Personal statistics | V2 | Planned |
-| Surprise / discovery | V2 | Planned |
-| Offline maps | V3 | Planned |
-| Automatic map updates | V3 | Planned |
-| Complete offline mode | V3 | Planned |
-| Monitoring & observability | V3 | Planned |
-| Backup & restore | V3 | Planned |
-| Local AI | V4 | Planned |
-| RAG | V4 | Planned |
-| Knowledge Assistant | V4 | Planned |
-| Semantic search | V4 | Planned |
-| Recommendations | V4 | Planned |
+**Phase: V1 — Base architecture initialized**
 
-See the [GitHub Issues](https://github.com/untab-consulting/knowledge/issues) for the implementation backlog.
+The repository now contains the initial application and infrastructure skeleton. The project is not yet feature-complete: the current goal is to validate and stabilize the base stack before implementing the first real content modules.
+
+### Already implemented
+
+- [x] Repository structure initialized
+- [x] Docker Compose foundation
+- [x] PostgreSQL service
+- [x] Redis service
+- [x] Meilisearch service
+- [x] ASP.NET Core API skeleton
+- [x] Angular frontend skeleton
+- [x] Nginx frontend container
+- [x] API health endpoint
+- [x] Docker health checks
+- [x] Internal Docker network
+- [x] Persistent storage strategy for Unraid
+- [x] `.env.example` configuration template
+- [x] `.gitignore` / `.dockerignore`
+- [x] Non-root API container user
+- [x] Unraid deployment documentation skeleton
+
+### Immediate next steps
+
+1. Validate the Docker Compose configuration.
+2. Build all containers successfully.
+3. Start the complete stack locally.
+4. Verify PostgreSQL, Redis and Meilisearch connectivity.
+5. Verify API health checks.
+6. Verify Angular → Nginx → API communication.
+7. Deploy the same stack on Unraid.
+8. Validate persistent volumes and permissions.
+9. Finalize the ASP.NET Core backend architecture.
+10. Finalize the Angular application architecture.
+
+The next functional milestone is **V1 backend implementation**.
 
 ---
 
-## Target architecture
+## Architecture
 
 The initial architecture is intentionally modular:
 
@@ -64,7 +75,7 @@ The initial architecture is intentionally modular:
                          │   Angular Frontend  │
                          └──────────┬──────────┘
                                     │
-                             HTTP / WebSocket
+                              Nginx / HTTP
                                     │
                          ┌──────────▼──────────┐
                          │ ASP.NET Core Backend│
@@ -73,7 +84,7 @@ The initial architecture is intentionally modular:
               ┌─────────────────────┼─────────────────────┐
               │                     │                     │
        ┌──────▼──────┐       ┌──────▼──────┐       ┌──────▼──────┐
-       │ PostgreSQL  │       │Search Engine │       │    Redis    │
+       │ PostgreSQL  │       │ Meilisearch │       │    Redis    │
        └─────────────┘       └─────────────┘       └─────────────┘
               │                     │                     │
               └─────────────────────┼─────────────────────┘
@@ -89,40 +100,107 @@ The initial architecture is intentionally modular:
                      Future: Local AI / RAG
 ```
 
-### Initial technology targets
+### Initial technology stack
 
 - **Frontend:** Angular
 - **Backend:** ASP.NET Core / .NET
 - **Database:** PostgreSQL
-- **Search:** Meilisearch or OpenSearch
+- **Search:** Meilisearch
 - **Cache / jobs:** Redis
-- **Reverse proxy:** Traefik or Nginx Proxy Manager
+- **Web server / reverse proxy:** Nginx initially; external reverse proxy can be added for deployment
 - **Deployment:** Docker / Unraid
 - **Maps:** OpenStreetMap-based datasets
 - **Local AI:** Ollama, vLLM or equivalent
 
-These are **initial targets**, not immutable decisions. Technology choices should be validated during implementation.
+Technology choices can be revisited as implementation requirements become concrete.
+
+---
+
+## Repository structure
+
+```text
+knowledge/
+├── src/
+│   ├── backend/
+│   │   └── Knowledge.Api/
+│   └── frontend/
+│       └── src/
+│
+├── infrastructure/
+│   ├── docker/
+│   │   ├── backend.Dockerfile
+│   │   ├── frontend.Dockerfile
+│   │   └── nginx.conf
+│   └── unraid/
+│       └── README.md
+│
+├── modules/
+├── docs/
+├── scripts/
+├── data/
+├── docker-compose.yml
+├── .env.example
+├── .gitignore
+├── .dockerignore
+└── README.md
+```
+
+`modules/`, `docs/`, `scripts/` and `data/` are reserved for the next implementation stages. Production datasets must not be committed to Git.
+
+---
+
+## Unraid storage architecture
+
+Knowledge follows the Unraid convention of keeping persistent application data outside the container filesystem.
+
+Recommended host layout:
+
+```text
+/mnt/user/appdata/knowledge/
+├── postgres/
+├── redis/
+├── meilisearch/
+├── content/
+├── imports/
+├── maps/
+├── ai/
+└── backups/
+```
+
+### Rules
+
+- Containers remain disposable.
+- Persistent application state goes under `/mnt/user/appdata/knowledge/`.
+- Large datasets must not live inside Docker layers.
+- Host paths must be configurable; do not hard-code a personal Unraid path in application code.
+- Permissions must be validated when deploying to Unraid.
+- Backups must be independent from the active application containers.
+
+The exact mapping of each directory is defined by the Compose configuration and may evolve as modules are implemented.
 
 ---
 
 # Getting started
 
-The project is being built incrementally. Follow the steps below **in order**.
+Follow these steps in order.
 
 ## Step 0 — Prerequisites
 
-Install or have access to:
+Required for development:
 
 - Git
 - Docker
 - Docker Compose
-- An Unraid server for deployment/testing
-- .NET SDK compatible with the selected ASP.NET Core version
+- .NET SDK compatible with the selected backend version
 - Node.js + npm
 - Angular CLI
-- PostgreSQL client/tools (optional but useful)
 
-Verify the basic tools:
+For deployment/testing:
+
+- Unraid server
+- User Shares / appdata storage available
+
+Verify the tools:
 
 ```bash
 git --version
@@ -145,255 +223,272 @@ cd knowledge
 
 ---
 
-## Step 2 — Define the repository structure
+## Step 2 — Configure the environment
 
-Create the initial modular structure before implementing business features.
+Copy the example configuration:
 
-Suggested structure:
-
-```text
-knowledge/
-├── src/
-│   ├── frontend/              # Angular application
-│   ├── backend/               # ASP.NET Core API
-│   ├── worker/                # Imports, indexing and scheduled jobs
-│   └── shared/                # Shared contracts/models when necessary
-├── modules/
-│   ├── wikipedia/
-│   ├── books/
-│   ├── articles/
-│   ├── movies/
-│   ├── games/
-│   └── maps/
-├── infrastructure/
-│   ├── docker/
-│   ├── unraid/
-│   └── proxy/
-├── data/                      # Local development data only
-├── docs/
-├── scripts/
-├── docker-compose.yml
-├── .env.example
-└── README.md
+```bash
+cp .env.example .env
 ```
 
-Do not commit production data, secrets, generated indexes or downloaded datasets.
+Edit `.env` and provide local credentials/secrets.
+
+**Never commit `.env`.**
+
+For Unraid, verify that the configured host paths point to the intended `/mnt/user/appdata/knowledge/...` directories.
 
 ---
 
-## Step 3 — Bootstrap Docker / Unraid
+## Step 3 — Validate Docker Compose
 
-Implement the base infrastructure first:
+Before starting containers:
 
-1. PostgreSQL container
-2. Redis container
-3. Search engine container
-4. Backend container
-5. Frontend container
-6. Persistent volumes
-7. Internal Docker networking
-8. Environment/configuration management
-9. Health checks
-
-The Unraid deployment should use persistent application-data directories rather than storing large datasets inside ephemeral containers.
-
----
-
-## Step 4 — Create the ASP.NET Core backend
-
-Create the backend and establish the API foundation.
-
-Minimum requirements:
-
-- Configuration through environment variables
-- Dependency injection
-- Structured logging
-- Health endpoint
-- PostgreSQL connection
-- Redis connection
-- Search-engine abstraction
-- API versioning strategy
-- Error handling
-- Authentication-ready architecture
-
-Keep domain modules isolated from infrastructure concerns.
-
----
-
-## Step 5 — Create the Angular frontend
-
-Create the Angular application with a modular UI architecture.
-
-Initial screens:
-
-- Login
-- Dashboard
-- Global search
-- Library/content browser
-- Content details
-- Settings
-
-The frontend should communicate with the backend through a typed API layer rather than directly accessing databases or storage.
-
----
-
-## Step 6 — Implement authentication
-
-Implement authentication before adding user-specific features.
-
-Requirements:
-
-- User accounts
-- Secure password handling or an external identity provider
-- Session/token management
-- Authorization model
-- User-specific data isolation
-- Secure configuration for secrets
-
-Never commit credentials or tokens to Git.
-
----
-
-## Step 7 — Design the PostgreSQL data model
-
-Define the core entities before implementing the content modules.
-
-The model should support:
-
-- Users
-- Content items
-- Content types/modules
-- Metadata
-- Tags
-- Collections
-- Favorites
-- Progress/status
-- Activity history
-- Achievements/XP
-- Synchronization state
-
-Avoid coupling the database schema to a single content provider.
-
----
-
-## Step 8 — Implement the module system
-
-Create a stable contract for modules.
-
-Each module should define, as appropriate:
-
-- Metadata model
-- Importer
-- Storage strategy
-- Search/indexing strategy
-- API endpoints
-- Frontend views
-- Synchronization rules
-
-Adding a new module should not require modifying unrelated modules.
-
----
-
-## Step 9 — Implement local content storage
-
-Define a predictable storage hierarchy for large datasets.
-
-Example:
-
-```text
-/mnt/user/appdata/knowledge/
-├── database/
-├── search/
-├── wikipedia/
-├── books/
-├── articles/
-├── movies/
-├── games/
-├── maps/
-├── ai/
-└── backups/
+```bash
+docker compose config
 ```
 
-Keep metadata in PostgreSQL while large binary/dataset content lives in dedicated persistent storage.
+This should complete without configuration errors.
 
 ---
 
-## Step 10 — Implement global search
+## Step 4 — Build and start the stack
 
-Start with lexical search and design the abstraction so semantic/vector search can be added later.
+```bash
+docker compose up -d --build
+```
 
-Search should support:
+Inspect the services:
 
-- All modules
-- Title/content matching
-- Tags
-- Content type filters
-- User-specific visibility
-- Ranking
-- Pagination
+```bash
+docker compose ps
+docker compose logs -f
+```
 
-Later V4 work will add hybrid lexical + vector search.
-
----
-
-## Step 11 — Integrate Wikipedia offline
-
-Implement the first major content importer.
-
-Process:
-
-1. Select the supported Wikipedia dataset/source.
-2. Download it into persistent storage.
-3. Validate the dataset.
-4. Import/index metadata.
-5. Build searchable content.
-6. Expose articles through the API.
-7. Render articles in Angular.
-8. Track dataset version and import status.
-9. Make the content available without internet access.
-
-The importer must be resumable and must not leave the active dataset unusable after a failed update.
+All required services should become healthy.
 
 ---
 
-## Step 12 — Add books and articles/documents
+## Step 5 — Validate infrastructure connectivity
 
-Reuse the module/import infrastructure instead of creating one-off implementations.
+Verify:
 
-For each content source:
+- PostgreSQL is reachable by the API.
+- Redis is reachable by the API.
+- Meilisearch is reachable by the API.
+- The API health endpoint reports healthy dependencies.
+- Nginx serves the Angular application.
+- `/api` requests are correctly forwarded to ASP.NET Core.
 
-1. Define metadata.
-2. Define storage format.
-3. Implement importer.
-4. Validate imported data.
-5. Index content.
-6. Add API endpoints.
-7. Add frontend views.
-8. Add global search integration.
+Do not move to content import until this baseline is stable.
 
 ---
 
-## Step 13 — Build the Dashboard
+## Step 6 — Deploy on Unraid
 
-The dashboard should become the entry point to Knowledge.
+1. Clone or deploy the repository on the server.
+2. Create the required `/mnt/user/appdata/knowledge/` directories.
+3. Review UID/GID and filesystem permissions.
+4. Configure `.env` with production-safe values.
+5. Validate the Compose configuration.
+6. Start the stack.
+7. Verify container health.
+8. Restart the stack and confirm data persistence.
+9. Test that deleting/recreating application containers does not delete persistent data.
 
-Initial widgets:
-
-- Recently accessed content
-- Continue reading/watching
-- Favorites
-- Collections
-- Search
-- Random discovery
-- Import/synchronization status
+The Unraid deployment must behave like the development deployment while keeping persistent data on the host.
 
 ---
 
-## Step 14 — Add tags and collections
+# V1 — Core platform
 
-Implement cross-module organization.
+The following order is the implementation sequence for V1.
 
-Tags and collections must work across books, articles, Wikipedia and future modules without requiring module-specific implementations.
+### 1. Infrastructure
+
+**Status: initialized — validation remains**
+
+- [x] Repository skeleton
+- [x] Docker Compose
+- [x] PostgreSQL
+- [x] Redis
+- [x] Meilisearch
+- [x] Backend container
+- [x] Frontend container
+- [x] Persistent storage mappings
+- [x] Health checks
+- [ ] Full local integration test
+- [ ] Full Unraid deployment test
+
+Tracked by **Issue #2 — Initialiser la structure Docker/Unraid**.
+
+### 2. Backend
+
+**Status: skeleton initialized — implementation remains**
+
+Next tasks:
+
+- [ ] Establish ASP.NET Core solution architecture
+- [ ] Configuration system
+- [ ] Dependency injection
+- [ ] Structured logging
+- [ ] Global error handling
+- [ ] PostgreSQL integration
+- [ ] Entity Framework Core
+- [ ] Redis integration
+- [ ] Meilisearch abstraction
+- [ ] API versioning strategy
+- [ ] Authentication-ready architecture
+- [ ] Automated tests
+
+Tracked by **Issue #3 — Mettre en place le backend ASP.NET Core**.
+
+### 3. Frontend
+
+**Status: skeleton initialized — implementation remains**
+
+Next tasks:
+
+- [ ] Angular application architecture
+- [ ] Routing
+- [ ] Layout/navigation
+- [ ] Typed API client
+- [ ] Authentication flow
+- [ ] Error/loading states
+- [ ] Dashboard shell
+- [ ] Global search UI
+- [ ] Automated tests
+
+Tracked by **Issue #4 — Mettre en place le frontend Angular**.
+
+### 4. Authentication
+
+**Status: not implemented**
+
+- [ ] User accounts
+- [ ] Password/security strategy
+- [ ] Token/session management
+- [ ] Authorization
+- [ ] User data isolation
+- [ ] Secret management
+
+Tracked by **Issue #5**.
+
+### 5. PostgreSQL data model
+
+**Status: not implemented**
+
+- [ ] Core entities
+- [ ] Users
+- [ ] Content items
+- [ ] Modules/content types
+- [ ] Metadata
+- [ ] Tags
+- [ ] Collections
+- [ ] Favorites
+- [ ] Progress/status
+- [ ] Activity history
+- [ ] Synchronization state
+- [ ] Migrations
+
+Tracked by **Issue #6**.
+
+### 6. Module system
+
+**Status: not implemented**
+
+Define stable contracts for:
+
+- [ ] Metadata
+- [ ] Importers
+- [ ] Storage
+- [ ] Indexing
+- [ ] API
+- [ ] Frontend views
+- [ ] Synchronization
+
+Tracked by **Issue #7**.
+
+### 7. Local content storage
+
+**Status: storage strategy defined — implementation remains**
+
+- [ ] Finalize directory conventions
+- [ ] Content storage abstraction
+- [ ] Import staging area
+- [ ] Atomic imports
+- [ ] Dataset versioning
+- [ ] Permissions
+- [ ] Cleanup policies
+
+Tracked by **Issue #8**.
+
+### 8. Global search
+
+**Status: Meilisearch infrastructure initialized — application integration remains**
+
+- [ ] Search indexing abstraction
+- [ ] Global indexing pipeline
+- [ ] Query API
+- [ ] Filters
+- [ ] Ranking
+- [ ] Pagination
+- [ ] Cross-module search
+
+Tracked by **Issue #9**.
+
+### 9. Wikipedia offline
+
+**Status: not implemented**
+
+- [ ] Select dataset/source
+- [ ] Downloader
+- [ ] Validation
+- [ ] Importer
+- [ ] Indexer
+- [ ] Version tracking
+- [ ] Resumable import
+- [ ] Failure-safe updates
+- [ ] Angular article viewer
+
+Tracked by **Issue #10**.
+
+### 10. Books
+
+**Status: not implemented**
+
+Tracked by **Issue #11**.
+
+### 11. Articles & documents
+
+**Status: not implemented**
+
+Tracked by **Issue #12**.
+
+### 12. Dashboard
+
+**Status: not implemented**
+
+Tracked by **Issue #13**.
+
+### 13. Tags & collections
+
+**Status: not implemented**
+
+Tracked by **Issue #14**.
+
+### 14. Synchronization
+
+**Status: not implemented**
+
+- [ ] Job framework
+- [ ] Scheduling
+- [ ] Import state
+- [ ] Progress reporting
+- [ ] Retry strategy
+- [ ] Failure handling
+- [ ] Versioning
+
+Tracked by **Issue #15**.
 
 ---
 
@@ -401,13 +496,13 @@ Tags and collections must work across books, articles, Wikipedia and future modu
 
 After V1 is stable:
 
-1. Add films and series.
-2. Integrate with Jellyfin where appropriate rather than duplicating media-server functionality.
-3. Add video games and platform metadata.
-4. Add XP, levels and achievements.
-5. Add personal statistics.
-6. Add the **Surprise Me** discovery feature.
-7. Extend global search to every new module.
+- [ ] Films & series — **Issue #16**
+- [ ] Video games — **Issue #17**
+- [ ] Gamification — **Issue #18**
+- [ ] Surprise Me — **Issue #19**
+- [ ] Personal statistics — **Issue #20**
+
+For films/series, prefer integrating with Jellyfin where it already provides media-server capabilities rather than duplicating them inside Knowledge.
 
 ---
 
@@ -415,14 +510,11 @@ After V1 is stable:
 
 After V2 is stable:
 
-1. Integrate OpenStreetMap-based offline maps.
-2. Add local POI search.
-3. Add automatic map dataset updates.
-4. Implement atomic dataset replacement and rollback.
-5. Add complete offline/PWA behavior.
-6. Add monitoring and observability.
-7. Implement backup and restore.
-8. Test recovery from a clean installation.
+- [ ] Offline maps — **Issue #21**
+- [ ] Automatic map updates — **Issue #22**
+- [ ] Complete offline mode — **Issue #23**
+- [ ] Monitoring & observability — **Issue #24**
+- [ ] Backup & restore — **Issue #25**
 
 The objective is that Knowledge remains genuinely useful with the external network disconnected.
 
@@ -430,18 +522,17 @@ The objective is that Knowledge remains genuinely useful with the external netwo
 
 # V4 — Local AI and intelligence
 
-Only after the local content pipeline is stable:
+After the local content pipeline is stable:
 
-1. Integrate a local LLM runtime.
-2. Build the embedding/indexing pipeline.
-3. Implement RAG over Knowledge content.
-4. Add source citations to generated answers.
-5. Add the Knowledge Assistant.
-6. Add hybrid semantic search.
-7. Add local recommendations.
-8. Harden security before exposing the service externally.
+- [ ] Local AI — **Issue #26**
+- [ ] RAG — **Issue #27**
+- [ ] Knowledge Assistant — **Issue #28**
+- [ ] Semantic search — **Issue #29**
+- [ ] Recommendations — **Issue #30**
+- [ ] Security hardening — **Issue #31**
+- [ ] Documentation / installation — **Issue #32**
 
-AI must remain optional. Core Knowledge functionality must not depend on a cloud provider.
+AI remains optional. Core Knowledge functionality must not depend on a cloud provider.
 
 ---
 
@@ -449,12 +540,12 @@ AI must remain optional. Core Knowledge functionality must not depend on a cloud
 
 For each feature:
 
-1. Pick the corresponding GitHub Issue.
+1. Select the corresponding GitHub Issue.
 2. Create a dedicated branch.
 3. Implement the smallest coherent change.
-4. Add/update tests.
+4. Add or update tests.
 5. Update documentation when behavior changes.
-6. Run the relevant checks locally.
+6. Run relevant checks locally.
 7. Commit with a clear message.
 8. Open a Pull Request.
 9. Review the change.
@@ -495,16 +586,6 @@ chore: update docker dependencies
 - Keep backups independently restorable.
 - Test offline behavior explicitly.
 - Keep external dependencies replaceable where practical.
-
----
-
-# Current status
-
-The project is currently in the **initialization / V1 architecture phase**.
-
-The implementation backlog is tracked through GitHub Issues. The immediate priority is to establish the repository structure and infrastructure before implementing the first content modules.
-
-**Next step:** complete **Issue #2 — `[V1] Initialiser la structure Docker/Unraid`**.
 
 ---
 
