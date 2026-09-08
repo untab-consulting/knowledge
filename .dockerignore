@@ -1,0 +1,14 @@
+.git
+.github
+.gitignore
+.env
+.env.*
+!.env.example
+README.md
+data
+node_modules
+**/bin
+**/obj
+**/dist
+**/.angular
+**/coverage
