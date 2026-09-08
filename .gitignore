@@ -1,0 +1,29 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Build output
+bin/
+obj/
+dist/
+node_modules/
+
+# Local development data
+data/
+*.db
+*.sqlite
+
+# Generated datasets / indexes
+*.dump
+*.sql.gz
+search-index/
+
+# Logs
+*.log
+logs/
