@@ -3,8 +3,8 @@
 FROM node:24-alpine AS build
 WORKDIR /src
 
-COPY src/frontend/package*.json ./
-RUN npm ci
+COPY src/frontend/package.json ./
+RUN npm install
 COPY src/frontend/ ./
 RUN npm run build -- --configuration production
 
