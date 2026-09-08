@@ -1,0 +1,111 @@
+name: ${COMPOSE_PROJECT_NAME:-knowledge}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: knowledge-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-knowledge}
+      POSTGRES_USER: ${POSTGRES_USER:-knowledge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      TZ: ${TZ:-Europe/Paris}
+    volumes:
+      - ${KNOWLEDGE_APPDATA:-/mnt/user/appdata/knowledge}/postgres:/var/lib/postgresql/data
+    networks:
+      - knowledge-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8-alpine
+    container_name: knowledge-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD}"]
+    volumes:
+      - ${KNOWLEDGE_APPDATA:-/mnt/user/appdata/knowledge}/redis:/data
+    networks:
+      - knowledge-internal
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.20
+    container_name: knowledge-meilisearch
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?Set MEILI_MASTER_KEY}
+      MEILI_ENV: ${MEILI_ENV:-development}
+    volumes:
+      - ${KNOWLEDGE_APPDATA:-/mnt/user/appdata/knowledge}/meilisearch:/meili_data
+    networks:
+      - knowledge-internal
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/backend.Dockerfile
+    container_name: knowledge-api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=${POSTGRES_DB:-knowledge};Username=${POSTGRES_USER:-knowledge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      Redis__ConnectionString: redis:6379,password=${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+      Search__Url: http://meilisearch:7700
+      Search__MasterKey: ${MEILI_MASTER_KEY:?Set MEILI_MASTER_KEY}
+      TZ: ${TZ:-Europe/Paris}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    volumes:
+      - ${KNOWLEDGE_APPDATA:-/mnt/user/appdata/knowledge}/content:/app/data/content
+      - ${KNOWLEDGE_APPDATA:-/mnt/user/appdata/knowledge}/imports:/app/data/imports
+      - ${KNOWLEDGE_APPDATA:-/mnt/user/appdata/knowledge}/backups:/app/data/backups
+    networks:
+      - knowledge-internal
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/frontend.Dockerfile
+    container_name: knowledge-frontend
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - knowledge-internal
+    ports:
+      - "${KNOWLEDGE_HTTP_PORT:-8088}:80"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+networks:
+  knowledge-internal:
+    name: knowledge-internal
+    driver: bridge
+    internal: true
