@@ -3,9 +3,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /src
 
-COPY src/backend/ ./
-RUN dotnet restore
-RUN dotnet publish -c Release -o /app/publish --no-restore
+COPY src/backend/Knowledge.Api/Knowledge.Api.csproj ./Knowledge.Api/
+RUN dotnet restore ./Knowledge.Api/Knowledge.Api.csproj
+
+COPY src/backend/Knowledge.Api/ ./Knowledge.Api/
+RUN dotnet publish ./Knowledge.Api/Knowledge.Api.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
