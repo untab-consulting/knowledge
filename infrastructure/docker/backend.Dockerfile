@@ -13,7 +13,10 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080
 
-RUN addgroup -S knowledge && adduser -S knowledge -G knowledge
+RUN apk add --no-cache wget \
+    && addgroup -S knowledge \
+    && adduser -S knowledge -G knowledge
+
 COPY --from=build /app/publish ./
 RUN mkdir -p /app/data/content /app/data/imports /app/data/backups \
     && chown -R knowledge:knowledge /app
